@@ -88,11 +88,11 @@ export default function Home() {
         </div>
         
         <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
-          <Button asChild className="px-8 py-6 text-lg bg-green-700 hover:bg-green-800">
-            <Link href="/portal">Encontrar Propriedades</Link>
+          <Button asChild className="px-8 py-6 text-lg bg-green-700 hover:bg-green-800 active:bg-green-900 touch-manipulation">
+            <Link href="/portal" className="block w-full h-full">Encontrar Propriedades</Link>
           </Button>
-          <Button asChild variant="outline" className="px-8 py-6 text-lg border-green-600 text-green-700 hover:bg-green-50">
-            <Link href="/login">Área do Anunciante</Link>
+          <Button asChild variant="outline" className="px-8 py-6 text-lg border-green-600 text-green-700 hover:bg-green-50 active:bg-green-100 touch-manipulation">
+            <Link href="/login" className="block w-full h-full">Área do Anunciante</Link>
           </Button>
         </div>
       </div>

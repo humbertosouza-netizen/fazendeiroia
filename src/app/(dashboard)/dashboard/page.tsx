@@ -267,8 +267,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+    <div className="space-y-6 w-full overflow-x-hidden">
+      <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Dashboard</h1>
       
       {/* Cards com métricas */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -298,7 +298,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Gráficos */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 max-w-full">
         {/* Gráfico de Estatísticas */}
         <Card className="shadow-sm mobile-full-width">
           <CardHeader className="pb-2">
@@ -324,7 +324,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="h-[300px] w-full overflow-hidden flex items-center justify-center">
-              <div className="h-full w-full max-w-[360px]">
+              <div className="h-full w-full max-w-[280px] sm:max-w-[360px] mx-auto">
                 <Doughnut 
                   options={{
                     ...opcoesGrafico,
@@ -339,7 +339,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Leads e Ranking */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 max-w-full">
         {/* Gráfico de Leads */}
         <Card className="shadow-sm mobile-full-width">
           <CardHeader className="pb-2">

@@ -561,10 +561,13 @@ export default function AnunciosPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">Meus Anúncios</h1>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Meus Anúncios</h1>
       </div>
       <div>
-        <Button variant="outline" onClick={() => setModalIAAberto(true)} className="w-full md:w-auto">
+            <Button 
+              onClick={() => setModalIAAberto(true)} 
+              className="w-full md:w-auto h-9 px-3 text-sm bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg shadow-green-400/40 ring-2 ring-green-400/30 hover:ring-green-300/50 hover:shadow-green-300/70 transition-transform hover:scale-[1.02]"
+            >
           🤖 Cadastrar propriedade com IA
         </Button>
       </div>

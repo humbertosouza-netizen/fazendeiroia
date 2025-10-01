@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft, Tractor, Wheat, Leaf, Trees, ChevronRight, MessageCircle } from "lucide-react";
-import anunciosService, { Anuncio } from "@/services/anunciosService";
+import anunciosService, { Anuncio, AnuncioImagem } from "@/services/anunciosService";
 import ChatBuscaFazenda from "@/components/ChatBuscaFazenda";
 import Image from "next/image";
 
@@ -13,6 +13,7 @@ export default function PortalPage() {
   const [anuncios, setAnuncios] = useState<Anuncio[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [chatAberto, setChatAberto] = useState(false);
+  const [imagensAnuncios, setImagensAnuncios] = useState<{[key: string]: AnuncioImagem[]}>({});
   
   // Carregar anúncios do Supabase
   useEffect(() => {
@@ -23,6 +24,21 @@ export default function PortalPage() {
         // Filtramos para mostrar apenas anúncios ativos no portal
         const anunciosAtivos = data?.filter(anuncio => anuncio.status === "Ativo") || [];
         setAnuncios(anunciosAtivos);
+        
+        // Carregar imagens para cada anúncio
+        const imagensMap: {[key: string]: AnuncioImagem[]} = {};
+        for (const anuncio of anunciosAtivos) {
+          if (anuncio.id) {
+            try {
+              const imagens = await anunciosService.getImagensAnuncio(anuncio.id);
+              imagensMap[anuncio.id] = imagens;
+            } catch (error) {
+              console.error(`Erro ao carregar imagens do anúncio ${anuncio.id}:`, error);
+              imagensMap[anuncio.id] = [];
+            }
+          }
+        }
+        setImagensAnuncios(imagensMap);
       } catch (error) {
         console.error("Erro ao carregar anúncios:", error);
       } finally {
@@ -227,20 +243,33 @@ export default function PortalPage() {
                       <div className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 h-full transform hover:-translate-y-2">
                         {/* Imagem com Overlay */}
                         <div className="relative h-56 bg-gradient-to-br from-green-600 via-green-700 to-green-900 overflow-hidden">
-                          {/* Pattern de Fundo */}
-                          <div className="absolute inset-0 opacity-10">
-                            <div className="absolute inset-0" style={{
-                              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-                              backgroundSize: '30px 30px'
-                            }}></div>
-                          </div>
-                          
-                          {/* Ícone Central */}
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="bg-white bg-opacity-20 backdrop-blur-sm rounded-full p-8 transform group-hover:scale-110 transition-transform duration-500">
-                              <Tractor className="h-16 w-16 text-white" />
-                            </div>
-                          </div>
+                          {/* Imagem real do anúncio ou placeholder */}
+                          {imagensAnuncios[anuncio.id || ''] && imagensAnuncios[anuncio.id || ''].length > 0 ? (
+                            <Image
+                              src={imagensAnuncios[anuncio.id || ''][0].url}
+                              alt={anuncio.titulo}
+                              fill
+                              className="object-cover group-hover:scale-105 transition-transform duration-500"
+                              unoptimized
+                            />
+                          ) : (
+                            <>
+                              {/* Pattern de Fundo */}
+                              <div className="absolute inset-0 opacity-10">
+                                <div className="absolute inset-0" style={{
+                                  backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                                  backgroundSize: '30px 30px'
+                                }}></div>
+                              </div>
+                              
+                              {/* Ícone Central */}
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="bg-white bg-opacity-20 backdrop-blur-sm rounded-full p-8 transform group-hover:scale-110 transition-transform duration-500">
+                                  <Tractor className="h-16 w-16 text-white" />
+                                </div>
+                              </div>
+                            </>
+                          )}
                           
                           {/* Badge de Status */}
                           <div className="absolute top-4 right-4">

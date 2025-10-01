@@ -137,8 +137,8 @@ export default function LeadsPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">Gerenciamento de Leads</h1>
-        <Badge className="px-3 py-1 bg-green-600 text-white">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Gerenciamento de Leads</h1>
+        <Badge className="px-2.5 py-0.5 sm:px-3 sm:py-1 text-[10px] sm:text-xs bg-green-600 text-white">
           {leads.length} leads no total
         </Badge>
       </div>

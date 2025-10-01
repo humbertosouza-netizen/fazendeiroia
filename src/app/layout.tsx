@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/use-toast";
-import ChatFlutuante from "@/components/ChatFlutuante";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -50,7 +49,6 @@ export default function RootLayout({
       <body className={inter.className}>
         <main className="min-h-screen">{children}</main>
         <Toaster />
-        <ChatFlutuante />
       </body>
     </html>
   );

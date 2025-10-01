@@ -18,11 +18,11 @@ export default function ChatFlutuante({ redirectUrl = '/portal' }: ChatFlutuante
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed bottom-4 right-4 z-50 sm:bottom-6 sm:right-6">
       {/* Botão flutuante */}
       <button
         onClick={toggleChat}
-        className={`bg-green-700 hover:bg-green-800 text-white rounded-full p-3 shadow-lg flex items-center justify-center transition-all duration-300 ${
+        className={`bg-green-700 hover:bg-green-800 active:bg-green-900 text-white rounded-full p-3 shadow-lg flex items-center justify-center transition-all duration-300 touch-manipulation ${
           aberto ? 'scale-0 opacity-0' : 'scale-100 opacity-100'
         }`}
         aria-label="Abrir chat com Fazendeiro IA"
