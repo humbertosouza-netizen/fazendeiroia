@@ -100,7 +100,20 @@ const emularBuscaAnuncios = (query: string, anuncios: Anuncio[]): Anuncio[] => {
   console.log("Emulando busca de anúncios com a query:", query);
   
   // Convertemos a query para minúsculo para comparação case-insensitive
-  const queryLower = query.toLowerCase();
+  const queryLower = query.toLowerCase().trim();
+  
+  // Lista de saudações e mensagens genéricas que NÃO devem retornar anúncios
+  const saudacoes = [
+    'oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 
+    'hi', 'hello', 'hey', 'e ai', 'e aí', 'tudo bem', 'tudo bom',
+    'ok', 'obrigado', 'obrigada', 'valeu', 'tchau'
+  ];
+  
+  // Se a query for apenas uma saudação ou muito curta, não retornar anúncios
+  if (queryLower.length < 5 || saudacoes.some(s => queryLower === s || queryLower.startsWith(s + ' ') || queryLower.endsWith(' ' + s))) {
+    console.log("Query identificada como saudação ou muito genérica - não retornando anúncios");
+    return [];
+  }
   
   // Lista de palavras-chave que procuramos nos anúncios
   const keywords: {[key: string]: string[]} = {
@@ -147,8 +160,19 @@ const emularBuscaAnuncios = (query: string, anuncios: Anuncio[]): Anuncio[] => {
     return { anuncio, score };
   });
   
+  // Verificar se há pelo menos uma palavra-chave relevante na query
+  const temKeywordRelevante = Object.values(keywords).some(category =>
+    category.some(keyword => queryLower.includes(keyword))
+  );
+  
+  if (!temKeywordRelevante) {
+    console.log("Nenhuma palavra-chave relevante encontrada na query - não retornando anúncios");
+    return [];
+  }
+  
   // Ordenar por pontuação decrescente e pegar os 3 melhores resultados
   const sortedResults = scores
+    .filter(item => item.score > 5) // Score mínimo para considerar relevante
     .sort((a, b) => b.score - a.score)
     .map(item => item.anuncio)
     .slice(0, 3);

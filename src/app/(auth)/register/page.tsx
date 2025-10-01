@@ -7,14 +7,19 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import Image from "next/image";
-import { Leaf, UserPlus } from "lucide-react";
+import { Leaf, UserPlus, User, Phone, Building } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [nomeCompleto, setNomeCompleto] = useState("");
+  const [relacaoImovel, setRelacaoImovel] = useState("");
+  const [telefone, setTelefone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,23 +28,68 @@ export default function RegisterPage() {
     setLoading(true);
     setError(null);
 
+    // Validações
     if (password !== confirmPassword) {
       setError("As senhas não coincidem");
       setLoading(false);
       return;
     }
 
+    if (!nomeCompleto.trim()) {
+      setError("Nome completo é obrigatório");
+      setLoading(false);
+      return;
+    }
+
+    if (!relacaoImovel) {
+      setError("Selecione sua relação com imóveis");
+      setLoading(false);
+      return;
+    }
+
+    if (!telefone.trim()) {
+      setError("Telefone é obrigatório");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            nome_completo: nomeCompleto.trim(),
+            relacao_imovel: relacaoImovel,
+            telefone: telefone.trim(),
+          }
         },
       });
 
       if (error) {
         throw error;
+      }
+
+      // Criar registro na tabela usuarios
+      if (data.user) {
+        const { error: userError } = await supabase
+          .from('usuarios')
+          .insert({
+            id: data.user.id,
+            nome: nomeCompleto.trim(),
+            nome_completo: nomeCompleto.trim(),
+            email: email,
+            telefone: telefone.trim(),
+            relacao_imovel: relacaoImovel,
+            status: 'Ativo',
+            plano: 'Básico',
+            role: 'usuario'
+          });
+
+        if (userError) {
+          console.error('Erro ao criar usuário:', userError);
+        }
       }
 
       router.push("/login?message=Verifique seu email para confirmar seu cadastro");
@@ -87,10 +137,26 @@ export default function RegisterPage() {
         <CardContent>
           <form onSubmit={handleRegister} className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium flex items-center gap-1 text-green-800">
+              <Label htmlFor="nomeCompleto" className="text-sm font-medium flex items-center gap-1 text-green-800">
+                <User className="h-3.5 w-3.5 text-green-600" />
+                Nome Completo *
+              </Label>
+              <Input
+                id="nomeCompleto"
+                type="text"
+                placeholder="Seu nome completo"
+                value={nomeCompleto}
+                onChange={(e) => setNomeCompleto(e.target.value)}
+                required
+                className="border-green-200 focus-visible:ring-green-500"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-medium flex items-center gap-1 text-green-800">
                 <Leaf className="h-3.5 w-3.5 text-green-600" />
-                Email
-              </label>
+                Email *
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -100,6 +166,40 @@ export default function RegisterPage() {
                 required
                 className="border-green-200 focus-visible:ring-green-500"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="telefone" className="text-sm font-medium flex items-center gap-1 text-green-800">
+                <Phone className="h-3.5 w-3.5 text-green-600" />
+                Telefone *
+              </Label>
+              <Input
+                id="telefone"
+                type="tel"
+                placeholder="(11) 99999-9999"
+                value={telefone}
+                onChange={(e) => setTelefone(e.target.value)}
+                required
+                className="border-green-200 focus-visible:ring-green-500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="relacaoImovel" className="text-sm font-medium flex items-center gap-1 text-green-800">
+                <Building className="h-3.5 w-3.5 text-green-600" />
+                Qual é a sua relação com imóveis? *
+              </Label>
+              <Select value={relacaoImovel} onValueChange={setRelacaoImovel} required>
+                <SelectTrigger className="border-green-200 focus:ring-green-500">
+                  <SelectValue placeholder="Selecione uma opção" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Proprietario">Proprietário</SelectItem>
+                  <SelectItem value="Corretor">Corretor</SelectItem>
+                  <SelectItem value="Imobiliaria">Imobiliária</SelectItem>
+                  <SelectItem value="Instituicao_financeira">Instituição Financeira</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <label htmlFor="password" className="text-sm font-medium flex items-center gap-1 text-green-800">

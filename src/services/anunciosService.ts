@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import storageService from './storageService';
 
 // Tipos para os anúncios
 export interface Anuncio {
@@ -37,6 +38,14 @@ export interface FazendaDetalhes {
   tipo_oferta: 'venda' | 'arrendamento';
   periodo_arrendamento?: string;
   valor_arrendamento?: number;
+}
+
+export interface AnuncioImagem {
+  id: string;
+  anuncio_id: string;
+  url: string;
+  ordem: number;
+  created_at: string;
 }
 
 // Serviço para gerenciar anúncios
@@ -155,90 +164,8 @@ const anunciosService = {
         }
       }
       
-      console.log("Retornando dados de exemplo...");
-      // Se não houver anúncios ou ocorrer erro, retornar dados de exemplo
-      return [
-        {
-          id: '1',
-          titulo: 'Fazenda Modelo',
-          categoria: 'Fazenda',
-          preco: 'R$ 1.500.000,00',
-          status: 'Ativo',
-          visualizacoes: 120,
-          datapublicacao: new Date().toISOString(),
-          usuario_id: 'temp-user-id',
-          detalhes: {
-            anuncio_id: '1',
-            estado: 'SP',
-            regiao: 'Interior',
-            finalidade: 'Pecuária',
-            area: 150,
-            cidade: 'Ribeirão Preto',
-            distancia: 15,
-            acesso: 'Estrada asfaltada',
-            recurso_hidrico: 'Rio',
-            energia: 'Rede Elétrica',
-            tipo_solo: 'Argiloso',
-            documentacao: 'Regular',
-            estruturas: ['sede', 'curral', 'galpao'],
-            tipo_oferta: 'venda'
-          }
-        },
-        {
-          id: '2',
-          titulo: 'Fazenda Esperança',
-          categoria: 'Fazenda',
-          preco: 'R$ 2.300.000,00',
-          status: 'Ativo',
-          visualizacoes: 85,
-          datapublicacao: new Date().toISOString(),
-          usuario_id: 'temp-user-id',
-          detalhes: {
-            anuncio_id: '2',
-            estado: 'MG',
-            regiao: 'Sul',
-            finalidade: 'Agricultura',
-            area: 220,
-            cidade: 'Poços de Caldas',
-            distancia: 8,
-            acesso: 'Estrada de terra',
-            recurso_hidrico: 'Nascente',
-            energia: 'Rede Elétrica',
-            tipo_solo: 'Terra roxa',
-            documentacao: 'Regular',
-            estruturas: ['sede', 'casaFuncionarios', 'galpao'],
-            tipo_oferta: 'venda'
-          }
-        },
-        {
-          id: '3',
-          titulo: 'Fazenda São João',
-          categoria: 'Fazenda',
-          preco: 'R$ 3.700.000,00',
-          status: 'Pausado',
-          visualizacoes: 210,
-          datapublicacao: new Date().toISOString(),
-          usuario_id: 'temp-user-id',
-          detalhes: {
-            anuncio_id: '3',
-            estado: 'GO',
-            regiao: 'Centro',
-            finalidade: 'Misto',
-            area: 350,
-            cidade: 'Cristalina',
-            distancia: 25,
-            acesso: 'Estrada asfaltada',
-            recurso_hidrico: 'Açude',
-            energia: 'Rede Elétrica',
-            tipo_solo: 'Arenoso',
-            documentacao: 'Regular',
-            estruturas: ['sede', 'curral', 'cercas'],
-            tipo_oferta: 'arrendamento',
-            periodo_arrendamento: '5 anos',
-            valor_arrendamento: 12000
-          }
-        }
-      ];
+      console.log("Sem anúncios: retornando vazio");
+      return [];
     } catch (error) {
       console.error('Erro geral ao buscar anúncios:', error);
       if (error instanceof Error) {
@@ -252,6 +179,8 @@ const anunciosService = {
   // Buscar um anúncio específico com seus detalhes
   async getAnuncioDetalhes(anuncioId: string) {
     try {
+      console.log('🔍 Buscando anúncio básico:', anuncioId);
+      
       // Buscar o anúncio básico
       const { data: anuncio, error: anuncioError } = await supabase
         .from('anuncios')
@@ -260,10 +189,14 @@ const anunciosService = {
         .single();
         
       if (anuncioError) {
+        console.error('❌ Erro ao buscar anúncio:', anuncioError);
         throw anuncioError;
       }
       
+      console.log('✅ Anúncio básico encontrado:', anuncio);
+      
       // Buscar os detalhes da fazenda
+      console.log('🔍 Buscando detalhes da fazenda para:', anuncioId);
       const { data: fazendaDetalhes, error: fazendaError } = await supabase
         .from('fazenda_detalhes')
         .select('*')
@@ -271,15 +204,21 @@ const anunciosService = {
         .single();
         
       if (fazendaError && fazendaError.code !== 'PGRST116') { // Ignorar erro se não encontrar
+        console.error('❌ Erro ao buscar detalhes da fazenda:', fazendaError);
         throw fazendaError;
       }
       
-      return {
+      console.log('✅ Detalhes da fazenda encontrados:', fazendaDetalhes);
+      
+      const resultado = {
         ...anuncio,
         detalhes: fazendaDetalhes || null
       };
+      
+      console.log('📋 Resultado final:', resultado);
+      return resultado;
     } catch (error) {
-      console.error('Erro ao buscar detalhes do anúncio:', error);
+      console.error('❌ Erro ao buscar detalhes do anúncio:', error);
       return null;
     }
   },
@@ -298,6 +237,12 @@ const anunciosService = {
         console.log('Usuário não autenticado, usando ID temporário');
       }
       
+      console.log('📝 Criando anúncio com dados:', {
+        ...anuncio,
+        usuario_id: userId,
+        datapublicacao: new Date().toISOString()
+      });
+      
       // Remover validação RLS para permitir inserção sem autenticação (apenas para ambiente de desenvolvimento)
       const { data: novoAnuncio, error: anuncioError } = await supabase
         .from('anuncios')
@@ -308,6 +253,8 @@ const anunciosService = {
         })
         .select()
         .single();
+        
+      console.log('📊 Resultado da criação do anúncio:', { novoAnuncio, anuncioError });
         
       if (anuncioError) {
         console.error('Erro ao inserir anúncio:', anuncioError);
@@ -346,14 +293,7 @@ const anunciosService = {
       return novoAnuncio;
     } catch (error) {
       console.error('Erro ao criar anúncio:', error);
-      
-      // Para ambiente de desenvolvimento, retornar um anúncio fictício ao invés de null
-      return {
-        id: 'temp-' + Math.random().toString(36).substring(7),
-        ...anuncio,
-        usuario_id: 'temp-user-id',
-        datapublicacao: new Date().toISOString()
-      };
+      return null;
     }
   },
   
@@ -469,6 +409,168 @@ const anunciosService = {
     } catch (error) {
       console.error('Erro ao incrementar visualizações:', error);
       return false;
+    }
+  },
+
+  // Buscar imagens de um anúncio
+  async getImagensAnuncio(anuncioId: string): Promise<AnuncioImagem[]> {
+    try {
+      console.log('🔍 Buscando imagens no banco para anuncio_id:', anuncioId);
+      
+      const { data: imagens, error } = await supabase
+        .from('anuncio_imagens')
+        .select('*')
+        .eq('anuncio_id', anuncioId)
+        .order('ordem', { ascending: true });
+        
+      if (error) {
+        console.error('❌ Erro ao buscar imagens do anúncio:', error);
+        return [];
+      }
+      
+      console.log('📸 Resultado da consulta de imagens:', imagens);
+      return imagens || [];
+    } catch (error) {
+      console.error('❌ Erro ao buscar imagens do anúncio:', error);
+      return [];
+    }
+  },
+
+  // Adicionar imagem a um anúncio
+  async adicionarImagemAnuncio(anuncioId: string, url: string, ordem: number = 0): Promise<AnuncioImagem | null> {
+    try {
+      console.log('💾 Salvando imagem no banco:', { anuncioId, url, ordem });
+      
+      const { data: novaImagem, error } = await supabase
+        .from('anuncio_imagens')
+        .insert({
+          anuncio_id: anuncioId,
+          url: url,
+          ordem: ordem
+        })
+        .select()
+        .single();
+        
+      if (error) {
+        console.error('❌ Erro ao adicionar imagem:', error);
+        return null;
+      }
+      
+      console.log('✅ Imagem salva com sucesso:', novaImagem);
+      return novaImagem;
+    } catch (error) {
+      console.error('❌ Erro ao adicionar imagem:', error);
+      return null;
+    }
+  },
+
+  // Remover imagem de um anúncio
+  async removerImagemAnuncio(imagemId: string): Promise<boolean> {
+    try {
+      // Primeiro, buscar a imagem para obter o path
+      const { data: imagem, error: getError } = await supabase
+        .from('anuncio_imagens')
+        .select('url')
+        .eq('id', imagemId)
+        .single();
+        
+      if (getError) {
+        console.error('Erro ao buscar imagem:', getError);
+        return false;
+      }
+
+      // Extrair path da URL para remover do storage
+      if (imagem?.url) {
+        const url = new URL(imagem.url);
+        const path = url.pathname.split('/').slice(3).join('/'); // Remove /storage/v1/object/anuncios/
+        await storageService.removerImagem(path);
+      }
+
+      // Remover do banco de dados
+      const { error } = await supabase
+        .from('anuncio_imagens')
+        .delete()
+        .eq('id', imagemId);
+        
+      if (error) {
+        console.error('Erro ao remover imagem do banco:', error);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Erro ao remover imagem:', error);
+      return false;
+    }
+  },
+
+  // Upload e salvar imagens de um anúncio
+  async uploadImagensAnuncio(files: FileList, anuncioId: string): Promise<{sucesso: number, erros: string[]}> {
+    const erros: string[] = [];
+    let sucesso = 0;
+
+    try {
+      console.log('🚀 Iniciando upload de imagens para anúncio:', anuncioId);
+      console.log('📁 Arquivos recebidos:', files.length);
+      
+      // Validar arquivos
+      const arquivosValidos: File[] = [];
+      Array.from(files).forEach((file, index) => {
+        const validacao = storageService.validarArquivo(file);
+        if (validacao.valido) {
+          arquivosValidos.push(file);
+          console.log(`✅ Arquivo ${index + 1} válido:`, file.name);
+        } else {
+          erros.push(`Arquivo ${index + 1}: ${validacao.erro}`);
+          console.log(`❌ Arquivo ${index + 1} inválido:`, validacao.erro);
+        }
+      });
+
+      if (arquivosValidos.length === 0) {
+        console.log('❌ Nenhum arquivo válido encontrado');
+        return { sucesso: 0, erros };
+      }
+
+      console.log(`📤 Fazendo upload de ${arquivosValidos.length} arquivo(s) válido(s)`);
+
+      // Upload das imagens
+      const resultados = await storageService.uploadMultiplasImagens(
+        arquivosValidos as any, 
+        anuncioId
+      );
+
+      // Salvar URLs no banco de dados
+      console.log('🔄 Processando resultados do upload:', resultados);
+      
+      for (let i = 0; i < resultados.length; i++) {
+        const resultado = resultados[i];
+        console.log(`📤 Processando resultado ${i + 1}:`, resultado);
+        
+        if (resultado.success && resultado.url) {
+          const imagemSalva = await this.adicionarImagemAnuncio(
+            anuncioId, 
+            resultado.url, 
+            i
+          );
+          
+          if (imagemSalva) {
+            sucesso++;
+            console.log(`✅ Imagem ${i + 1} salva com sucesso`);
+          } else {
+            erros.push(`Erro ao salvar imagem ${i + 1} no banco de dados`);
+            console.log(`❌ Erro ao salvar imagem ${i + 1} no banco`);
+          }
+        } else {
+          erros.push(`Erro no upload da imagem ${i + 1}: ${resultado.error}`);
+          console.log(`❌ Erro no upload da imagem ${i + 1}:`, resultado.error);
+        }
+      }
+
+      return { sucesso, erros };
+    } catch (error) {
+      console.error('Erro no upload das imagens:', error);
+      erros.push('Erro geral no upload das imagens');
+      return { sucesso, erros };
     }
   }
 };

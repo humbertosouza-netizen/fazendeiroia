@@ -275,12 +275,15 @@ export default function UsersPage() {
           const sucesso = await usuariosService.excluirUsuario(id);
           
           if (sucesso) {
+            // Remoção otimista da lista local
+            setUsuarios((prev) => prev.filter(u => u.id !== id));
             toast({
               title: "Sucesso",
               description: "Usuário excluído com sucesso.",
               variant: "default",
             });
-            carregarUsuarios(); // Recarregar lista após exclusão
+            // Opcional: revalidar em segundo plano
+            setTimeout(() => { carregarUsuarios(); }, 0);
           } else {
             throw new Error("Falha ao excluir usuário");
           }
@@ -551,6 +554,9 @@ export default function UsersPage() {
                           <ArrowUpDown className="ml-2 h-4 w-4" />
                         </div>
                       </TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Telefone</TableHead>
+                      <TableHead>Relação</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Plano</TableHead>
                       <TableHead>Permissão</TableHead>
@@ -561,7 +567,7 @@ export default function UsersPage() {
                   <TableBody>
                     {carregando ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-10">
+                        <TableCell colSpan={9} className="text-center py-10">
                           <div className="flex justify-center">
                             <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                           </div>
@@ -582,10 +588,25 @@ export default function UsersPage() {
                                 </AvatarFallback>
                               </Avatar>
                               <div>
-                                <div className="font-medium">{user.nome}</div>
-                                <div className="text-sm text-gray-500">{user.email}</div>
+                                <div className="font-medium">{user.nome_completo || user.nome}</div>
+                                <div className="text-sm text-gray-500">{user.nome}</div>
                               </div>
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm text-gray-900">{user.email || 'N/A'}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm text-gray-900">{user.telefone || 'N/A'}</div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              {user.relacao_imovel === 'Proprietario' ? 'Proprietário' :
+                               user.relacao_imovel === 'Corretor' ? 'Corretor' :
+                               user.relacao_imovel === 'Imobiliaria' ? 'Imobiliária' :
+                               user.relacao_imovel === 'Instituicao_financeira' ? 'Inst. Financeira' :
+                               'N/A'}
+                            </span>
                           </TableCell>
                           <TableCell>
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${

@@ -16,6 +16,23 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { 
   ArrowLeft, 
   MapPin, 
   CalendarIcon, 
@@ -35,6 +52,11 @@ import {
   ChevronRight,
   Share2,
   Heart,
+  Link as LinkIcon,
+  Facebook,
+  Twitter,
+  MessageCircle as WhatsAppIcon,
+  Copy,
   DollarSign,
   Landmark,
   Square,
@@ -42,7 +64,7 @@ import {
   Tractor as TractorIcon,
   Camera
 } from "lucide-react";
-import anunciosService, { Anuncio, FazendaDetalhes } from "@/services/anunciosService";
+import anunciosService, { Anuncio, FazendaDetalhes, AnuncioImagem } from "@/services/anunciosService";
 import LeadCaptureModal from "@/components/LeadCaptureModal";
 import usuariosService, { Usuario } from "@/services/usuariosService";
 
@@ -56,13 +78,25 @@ export default function AnuncioDetalhesPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [leadModalOpen, setLeadModalOpen] = useState(false);
+  const [imagens, setImagens] = useState<AnuncioImagem[]>([]);
+  const [carregandoImagens, setCarregandoImagens] = useState(true);
+  const [favoritado, setFavoritado] = useState(false);
+  const [modalMensagem, setModalMensagem] = useState(false);
+  const [compartilharAberto, setCompartilharAberto] = useState(false);
   
-  // Imagens simuladas para galeria
-  const mockImages = [
-    { url: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1932&auto=format&fit=crop", alt: "Paisagem da fazenda 1" },
-    { url: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1932&auto=format&fit=crop", alt: "Paisagem da fazenda 2" },
-    { url: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1932&auto=format&fit=crop", alt: "Paisagem da fazenda 3" },
-  ];
+  const anuncioId = Array.isArray(params.id) ? params.id[0] : params.id;
+  
+  // Verificar se está favoritado ao carregar
+  useEffect(() => {
+    const favoritos = JSON.parse(localStorage.getItem('favoritos') || '[]');
+    setFavoritado(favoritos.includes(anuncioId));
+  }, [anuncioId]);
+  
+  // Imagem padrão única para quando não há imagens reais
+  const imagemPadrao = {
+    url: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1932&auto=format&fit=crop", 
+    alt: "Imagem padrão da fazenda"
+  };
   
   // Estruturas com ícones
   const estruturasMap: Record<string, {label: string, icon: React.ReactNode}> = {
@@ -76,18 +110,18 @@ export default function AnuncioDetalhesPage() {
     "barracao": { label: "Barracão", icon: <Warehouse className="h-4 w-4 text-green-600" /> },
   };
   
-  const anuncioId = Array.isArray(params.id) ? params.id[0] : params.id;
+  // Controles da galeria - usar apenas imagens reais ou imagem padrão única
+  const imagensParaExibir = imagens.length > 0 ? imagens : [imagemPadrao];
   
-  // Controles da galeria
   const nextImage = () => {
     setCurrentImageIndex((prevIndex) => 
-      prevIndex === mockImages.length - 1 ? 0 : prevIndex + 1
+      prevIndex === imagensParaExibir.length - 1 ? 0 : prevIndex + 1
     );
   };
   
   const prevImage = () => {
     setCurrentImageIndex((prevIndex) => 
-      prevIndex === 0 ? mockImages.length - 1 : prevIndex - 1
+      prevIndex === 0 ? imagensParaExibir.length - 1 : prevIndex - 1
     );
   };
   
@@ -110,8 +144,21 @@ export default function AnuncioDetalhesPage() {
         
         setAnuncio(detalhes);
         
-        // Incrementar visualizações
+        // Carregar imagens do anúncio
         if (detalhes.id) {
+          setCarregandoImagens(true);
+          try {
+            console.log("🔍 Buscando imagens para anúncio ID:", detalhes.id);
+            const imagensAnuncio = await anunciosService.getImagensAnuncio(detalhes.id);
+            console.log("📸 Imagens encontradas:", imagensAnuncio);
+            setImagens(imagensAnuncio);
+          } catch (error) {
+            console.error("❌ Erro ao carregar imagens do anúncio:", error);
+          } finally {
+            setCarregandoImagens(false);
+          }
+          
+          // Incrementar visualizações
           await anunciosService.incrementarVisualizacoes(detalhes.id);
         }
         
@@ -189,12 +236,119 @@ export default function AnuncioDetalhesPage() {
     
     return (partes[0].charAt(0) + partes[partes.length - 1].charAt(0)).toUpperCase();
   };
+
+  // Função para favoritar/desfavoritar
+  const toggleFavorito = () => {
+    setFavoritado(!favoritado);
+    // Aqui você pode implementar a lógica para salvar no localStorage ou banco de dados
+    if (!favoritado) {
+      // Adicionar aos favoritos
+      const favoritos = JSON.parse(localStorage.getItem('favoritos') || '[]');
+      if (!favoritos.includes(anuncioId)) {
+        favoritos.push(anuncioId);
+        localStorage.setItem('favoritos', JSON.stringify(favoritos));
+      }
+    } else {
+      // Remover dos favoritos
+      const favoritos = JSON.parse(localStorage.getItem('favoritos') || '[]');
+      const novosFavoritos = favoritos.filter((id: string) => id !== anuncioId);
+      localStorage.setItem('favoritos', JSON.stringify(novosFavoritos));
+    }
+  };
+
+  // Função para abrir modal de mensagem
+  const abrirMensagem = () => {
+    setModalMensagem(true);
+  };
+
+  // Funções de compartilhamento
+  const compartilharWhatsApp = () => {
+    const url = window.location.href;
+    const texto = `Olha essa propriedade incrível que encontrei: ${anuncio?.titulo}\n${url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
+  };
+
+  const compartilharFacebook = () => {
+    const url = window.location.href;
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+  };
+
+  const compartilharTwitter = () => {
+    const url = window.location.href;
+    const texto = `Confira: ${anuncio?.titulo}`;
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(texto)}&url=${encodeURIComponent(url)}`, '_blank');
+  };
+
+  const copiarLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    alert('✅ Link copiado para a área de transferência!');
+    setCompartilharAberto(false);
+  };
+
   
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header com gradiente */}
+      {/* Header com gradiente - Mobile First */}
       <header className="bg-gradient-to-r from-green-700 to-green-900 text-white shadow-md">
-        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto py-3 md:py-4 px-4 sm:px-6 lg:px-8">
+          {/* Mobile Layout */}
+          <div className="md:hidden">
+            <div className="flex items-center justify-between mb-3">
+              <Link href="/portal" className="flex items-center">
+                <Button variant="ghost" size="icon" className="text-white hover:bg-green-800 h-10 w-10">
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <div className="flex space-x-2">
+                <DropdownMenu open={compartilharAberto} onOpenChange={setCompartilharAberto}>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="ghost" className="text-white hover:bg-green-800 p-2">
+                      <Share2 className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={compartilharWhatsApp} className="cursor-pointer">
+                      <WhatsAppIcon className="h-4 w-4 mr-2 text-green-600" />
+                      Compartilhar no WhatsApp
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={compartilharFacebook} className="cursor-pointer">
+                      <Facebook className="h-4 w-4 mr-2 text-blue-600" />
+                      Compartilhar no Facebook
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={compartilharTwitter} className="cursor-pointer">
+                      <Twitter className="h-4 w-4 mr-2 text-blue-400" />
+                      Compartilhar no Twitter
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={copiarLink} className="cursor-pointer">
+                      <Copy className="h-4 w-4 mr-2 text-gray-600" />
+                      Copiar Link
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Link href="/login">
+                  <Button size="sm" variant="outline" className="bg-transparent text-white border-white hover:bg-green-800 text-xs px-2 py-1">
+                    Anunciante
+                  </Button>
+                </Link>
+              </div>
+            </div>
+            <div>
+              <h1 className="text-lg font-bold leading-tight mb-1">
+                {anuncio.titulo}
+              </h1>
+              <p className="flex items-center text-sm text-green-100">
+                <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                <span className="truncate">
+                  {anuncio.detalhes?.cidade || "Localização não informada"}, 
+                  {anuncio.detalhes?.estado || ""}
+                </span>
+              </p>
+            </div>
+          </div>
+          
+          {/* Desktop Layout */}
+          <div className="hidden md:flex justify-between items-center">
           <div className="flex items-center">
             <Link href="/portal" className="mr-4">
               <Button variant="ghost" size="icon" className="text-white hover:bg-green-800">
@@ -213,31 +367,72 @@ export default function AnuncioDetalhesPage() {
             </div>
           </div>
           <div className="flex space-x-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
             <Button size="sm" variant="ghost" className="text-white hover:bg-green-800">
               <Share2 className="h-4 w-4 mr-2" />
               Compartilhar
             </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={compartilharWhatsApp} className="cursor-pointer">
+                    <WhatsAppIcon className="h-4 w-4 mr-2 text-green-600" />
+                    Compartilhar no WhatsApp
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={compartilharFacebook} className="cursor-pointer">
+                    <Facebook className="h-4 w-4 mr-2 text-blue-600" />
+                    Compartilhar no Facebook
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={compartilharTwitter} className="cursor-pointer">
+                    <Twitter className="h-4 w-4 mr-2 text-blue-400" />
+                    Compartilhar no Twitter
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={copiarLink} className="cursor-pointer">
+                    <Copy className="h-4 w-4 mr-2 text-gray-600" />
+                    Copiar Link
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             <Link href="/login">
               <Button size="sm" variant="outline" className="bg-transparent text-white border-white hover:bg-green-800">
                 Área do Anunciante
               </Button>
             </Link>
+            </div>
           </div>
         </div>
       </header>
       
-      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto py-4 md:py-8 px-4 sm:px-6 lg:px-8">
         {/* Galeria e Informações Principais */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 mb-6 md:mb-8">
           {/* Galeria */}
-          <div className="lg:col-span-2 bg-white rounded-xl overflow-hidden shadow-lg">
-            <div className="relative h-[450px]">
+          <div className="lg:col-span-2 bg-white rounded-lg md:rounded-xl overflow-hidden shadow-lg">
+            <div className="image-container relative h-[250px] md:h-[400px] max-h-[400px] overflow-hidden" style={{ maxHeight: '400px' }}>
               {/* Imagem principal */}
-              <img 
-                src={mockImages[currentImageIndex].url} 
-                alt={mockImages[currentImageIndex].alt} 
-                className="w-full h-full object-cover"
-              />
+              {carregandoImagens ? (
+                <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Carregando imagens...</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+                  <img 
+                    src={imagensParaExibir[currentImageIndex]?.url || imagemPadrao.url} 
+                    alt={imagensParaExibir[currentImageIndex]?.url ? `Imagem ${currentImageIndex + 1} da fazenda` : imagemPadrao.alt} 
+                    className="w-full h-full object-cover max-h-[400px]"
+                    style={{
+                      objectFit: 'cover',
+                      width: '100%',
+                      height: 'auto',
+                      maxHeight: '400px'
+                    }}
+                  />
+                </div>
+              )}
               
               {/* Badges */}
               <div className="absolute top-4 left-4 flex flex-wrap gap-2">
@@ -252,44 +447,48 @@ export default function AnuncioDetalhesPage() {
               </div>
               
               {/* Controles da galeria */}
-              <div className="absolute inset-0 flex items-center justify-between px-4">
+              <div className="absolute inset-0 flex items-center justify-between px-2 md:px-4 pointer-events-none">
                 <Button 
                   onClick={prevImage} 
                   variant="outline" 
                   size="icon" 
-                  className="bg-white/80 hover:bg-white text-green-900 rounded-full h-10 w-10"
+                  className="bg-white/90 hover:bg-white text-green-900 rounded-full h-8 w-8 md:h-10 md:w-10 pointer-events-auto shadow-md"
                 >
-                  <ChevronLeft className="h-6 w-6" />
+                  <ChevronLeft className="h-4 w-4 md:h-6 md:w-6" />
                 </Button>
                 <Button 
                   onClick={nextImage} 
                   variant="outline" 
                   size="icon" 
-                  className="bg-white/80 hover:bg-white text-green-900 rounded-full h-10 w-10"
+                  className="bg-white/90 hover:bg-white text-green-900 rounded-full h-8 w-8 md:h-10 md:w-10 pointer-events-auto shadow-md"
                 >
-                  <ChevronRight className="h-6 w-6" />
+                  <ChevronRight className="h-4 w-4 md:h-6 md:w-6" />
                 </Button>
               </div>
               
               {/* Contador de imagens */}
-              <div className="absolute bottom-4 right-4 bg-black/60 text-white px-3 py-1 rounded-full text-sm font-medium">
+              <div className="absolute bottom-2 md:bottom-4 right-2 md:right-4 bg-black/70 text-white px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium z-10">
                 <div className="flex items-center">
-                  <Camera className="h-4 w-4 mr-1" />
-                  {currentImageIndex + 1}/{mockImages.length}
+                  <Camera className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                  {currentImageIndex + 1}/{imagensParaExibir.length}
                 </div>
               </div>
             </div>
             
             {/* Miniaturas */}
-            <div className="flex p-3 gap-2 bg-gray-50">
-              {mockImages.map((img, index) => (
+            <div className="flex p-2 md:p-3 gap-1 md:gap-2 bg-gray-50 overflow-x-auto">
+              {imagensParaExibir.map((img, index) => (
                 <div 
                   key={index} 
-                  className={`w-20 h-20 rounded-md overflow-hidden cursor-pointer transition 
+                  className={`w-16 h-16 md:w-20 md:h-20 rounded-md overflow-hidden cursor-pointer transition flex-shrink-0
                               ${index === currentImageIndex ? 'ring-2 ring-green-600' : 'opacity-70 hover:opacity-100'}`}
                   onClick={() => setCurrentImageIndex(index)}
                 >
-                  <img src={img.url} alt={img.alt} className="w-full h-full object-cover" />
+                  <img 
+                    src={img.url} 
+                    alt={img.url ? `Miniatura ${index + 1}` : img.alt} 
+                    className="w-full h-full object-cover" 
+                  />
                 </div>
               ))}
             </div>
@@ -299,79 +498,97 @@ export default function AnuncioDetalhesPage() {
           <div>
             <Card className="shadow-lg border-0 mb-4">
               <CardHeader className="pb-2 border-b">
-                <CardTitle className="text-3xl font-bold text-green-900 flex items-center">
-                  <DollarSign className="h-7 w-7 text-green-700 mr-1" />
-                  {anuncio.preco}
+                <CardTitle className="text-2xl md:text-3xl font-bold text-green-900 flex items-center">
+                  <DollarSign className="h-6 w-6 md:h-7 md:w-7 text-green-700 mr-1 flex-shrink-0" />
+                  <span className="break-words">{anuncio.preco}</span>
                 </CardTitle>
-                <CardDescription className="flex items-center text-green-700 text-lg">
-                  <Tag className="h-5 w-5 mr-2" />
+                <CardDescription className="flex items-center text-green-700 text-base md:text-lg">
+                  <Tag className="h-4 w-4 md:h-5 md:w-5 mr-2 flex-shrink-0" />
                   {anuncio.detalhes?.tipo_oferta === 'venda' ? 'Venda' : 'Arrendamento'}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-5 pt-4">
-                <div className="grid grid-cols-2 gap-4">
+              <CardContent className="space-y-4 md:space-y-5 pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                   <div className="flex items-center">
-                    <Square className="h-5 w-5 mr-2 text-green-700" />
+                    <Square className="h-4 w-4 md:h-5 md:w-5 mr-2 text-green-700 flex-shrink-0" />
                     <div>
-                      <p className="text-sm text-gray-500">Área Total</p>
-                      <p className="font-medium">{anuncio.detalhes?.area || "?"} hectares</p>
+                      <p className="text-xs md:text-sm text-gray-500">Área Total</p>
+                      <p className="font-medium text-sm md:text-base">{anuncio.detalhes?.area || "?"} hectares</p>
                     </div>
                   </div>
                   
                   <div className="flex items-center">
-                    <TractorIcon className="h-5 w-5 mr-2 text-green-700" />
+                    <TractorIcon className="h-4 w-4 md:h-5 md:w-5 mr-2 text-green-700 flex-shrink-0" />
                     <div>
-                      <p className="text-sm text-gray-500">Finalidade</p>
-                      <p className="font-medium">{anuncio.detalhes?.finalidade || "Não informado"}</p>
+                      <p className="text-xs md:text-sm text-gray-500">Finalidade</p>
+                      <p className="font-medium text-sm md:text-base">{anuncio.detalhes?.finalidade || "Não informado"}</p>
                     </div>
                   </div>
                   
                   <div className="flex items-center">
-                    <CheckCircle2 className="h-5 w-5 mr-2 text-green-700" />
+                    <CheckCircle2 className="h-4 w-4 md:h-5 md:w-5 mr-2 text-green-700 flex-shrink-0" />
                     <div>
-                      <p className="text-sm text-gray-500">Documentação</p>
-                      <p className="font-medium">{anuncio.detalhes?.documentacao || "Não informado"}</p>
+                      <p className="text-xs md:text-sm text-gray-500">Documentação</p>
+                      <p className="font-medium text-sm md:text-base">{anuncio.detalhes?.documentacao || "Não informado"}</p>
                     </div>
                   </div>
                   
                   <div className="flex items-center">
-                    <Landmark className="h-5 w-5 mr-2 text-green-700" />
+                    <Landmark className="h-4 w-4 md:h-5 md:w-5 mr-2 text-green-700 flex-shrink-0" />
                     <div>
-                      <p className="text-sm text-gray-500">Distância</p>
-                      <p className="font-medium">{anuncio.detalhes?.distancia || "?"} km</p>
+                      <p className="text-xs md:text-sm text-gray-500">Distância</p>
+                      <p className="font-medium text-sm md:text-base">{anuncio.detalhes?.distancia || "?"} km</p>
                     </div>
                   </div>
                 </div>
                 
                 <Separator />
                 
-                <div className="flex items-center justify-between text-sm text-gray-500">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-xs md:text-sm text-gray-500">
                   <div className="flex items-center">
-                    <CalendarIcon className="h-4 w-4 mr-1" />
-                    <span>Publicado: {new Date(anuncio.datapublicacao).toLocaleDateString('pt-BR')}</span>
+                    <CalendarIcon className="h-3 w-3 md:h-4 md:w-4 mr-1 flex-shrink-0" />
+                    <span className="truncate">Publicado: {new Date(anuncio.datapublicacao).toLocaleDateString('pt-BR')}</span>
                   </div>
                   <div className="flex items-center">
-                    <Eye className="h-4 w-4 mr-1" />
+                    <Eye className="h-3 w-3 md:h-4 md:w-4 mr-1 flex-shrink-0" />
                     <span>{anuncio.visualizacoes} visualizações</span>
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="flex flex-col space-y-3 pt-0">
+              <CardFooter className="flex flex-col space-y-2 md:space-y-3 pt-0">
                 <Button 
-                  className="w-full bg-green-700 hover:bg-green-800"
+                  className="w-full bg-green-700 hover:bg-green-800 h-12 md:h-10"
                   onClick={() => setLeadModalOpen(true)}
                 >
                   <Phone className="h-4 w-4 mr-2" />
                   Entrar em contato
                 </Button>
-                <div className="grid grid-cols-2 gap-3 w-full">
-                  <Button variant="outline" className="w-full border-green-200 text-green-700 hover:bg-green-50">
-                    <Heart className="h-4 w-4 mr-2" />
-                    Favoritar
+                <div className="grid grid-cols-2 gap-2 md:gap-3 w-full">
+                  <Button 
+                    variant="outline" 
+                    className={`w-full h-10 text-sm ${
+                      favoritado 
+                        ? 'border-red-200 text-red-700 hover:bg-red-50 bg-red-50' 
+                        : 'border-green-200 text-green-700 hover:bg-green-50'
+                    }`}
+                    onClick={toggleFavorito}
+                  >
+                    <Heart className={`h-4 w-4 mr-1 md:mr-2 ${favoritado ? 'fill-current' : ''}`} />
+                    <span className="hidden md:inline">
+                      {favoritado ? 'Favoritado' : 'Favoritar'}
+                    </span>
+                    <span className="md:hidden">
+                      {favoritado ? 'Fav ✓' : 'Fav'}
+                    </span>
                   </Button>
-                  <Button variant="outline" className="w-full border-green-200 text-green-700 hover:bg-green-50">
-                    <Mail className="h-4 w-4 mr-2" />
-                    Mensagem
+                  <Button 
+                    variant="outline" 
+                    className="w-full border-green-200 text-green-700 hover:bg-green-50 h-10 text-sm"
+                    onClick={abrirMensagem}
+                  >
+                    <Mail className="h-4 w-4 mr-1 md:mr-2" />
+                    <span className="hidden md:inline">Mensagem</span>
+                    <span className="md:hidden">Msg</span>
                   </Button>
                 </div>
               </CardFooter>
@@ -380,33 +597,33 @@ export default function AnuncioDetalhesPage() {
             {/* Corretor/Anunciante */}
             <Card className="shadow-md border-0">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Anunciante</CardTitle>
+                <CardTitle className="text-base md:text-lg">Anunciante</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
                 {carregandoAnunciante ? (
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-gray-200 rounded-full animate-pulse"></div>
-                    <div className="space-y-2">
-                      <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
-                      <div className="h-3 bg-gray-200 rounded w-32 animate-pulse"></div>
+                  <div className="flex items-center space-x-3 md:space-x-4">
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-gray-200 rounded-full animate-pulse"></div>
+                    <div className="space-y-2 flex-1">
+                      <div className="h-3 md:h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
+                      <div className="h-2 md:h-3 bg-gray-200 rounded w-32 animate-pulse"></div>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                      <span className="text-green-700 font-bold text-lg">
+                  <div className="flex items-center space-x-3 md:space-x-4">
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-green-700 font-bold text-sm md:text-lg">
                         {anunciante ? obterIniciais(anunciante.nome) : "??"}
                       </span>
                     </div>
-                    <div>
-                      <p className="font-medium">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm md:text-base truncate">
                         {anunciante ? anunciante.nome : "Anunciante não disponível"}
                       </p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-xs md:text-sm text-gray-500 truncate">
                         {anunciante?.plano === "Premium" ? "Anunciante Premium" : "Corretor especializado"}
                       </p>
                       {anunciante?.plano === "Premium" && (
-                        <p className="text-sm text-green-600 mt-1">Anunciante verificado</p>
+                        <p className="text-xs md:text-sm text-green-600 mt-1">Anunciante verificado</p>
                       )}
                     </div>
                   </div>
@@ -417,23 +634,23 @@ export default function AnuncioDetalhesPage() {
         </div>
         
         {/* Tabs de Detalhes */}
-        <Tabs defaultValue="detalhes" className="mt-8">
-          <TabsList className="bg-white w-full grid grid-cols-3 p-1 rounded-t-xl shadow-md mb-1">
+        <Tabs defaultValue="detalhes" className="mt-6 md:mt-8">
+          <TabsList className="bg-white w-full grid grid-cols-3 p-1 rounded-t-xl shadow-md mb-1 h-10 md:h-11">
             <TabsTrigger 
               value="detalhes" 
-              className="data-[state=active]:bg-green-600 data-[state=active]:text-white"
+              className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-xs md:text-sm"
             >
               Detalhes
             </TabsTrigger>
             <TabsTrigger 
               value="estruturas"
-              className="data-[state=active]:bg-green-600 data-[state=active]:text-white"
+              className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-xs md:text-sm"
             >
               Estruturas
             </TabsTrigger>
             <TabsTrigger 
               value="localizacao"
-              className="data-[state=active]:bg-green-600 data-[state=active]:text-white"
+              className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-xs md:text-sm"
             >
               Localização
             </TabsTrigger>
@@ -441,48 +658,48 @@ export default function AnuncioDetalhesPage() {
           
           <TabsContent value="detalhes" className="mt-0">
             <Card className="border-0 shadow-md">
-              <CardHeader>
-                <CardTitle className="text-green-900">Detalhes da Propriedade</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-green-900 text-base md:text-lg">Detalhes da Propriedade</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div className="flex items-center space-x-3">
-                    <div className="bg-green-50 p-3 rounded-full">
-                      <Droplets className="h-5 w-5 text-green-600" />
+              <CardContent className="space-y-4 md:space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                  <div className="flex items-center space-x-2 md:space-x-3">
+                    <div className="bg-green-50 p-2 md:p-3 rounded-full flex-shrink-0">
+                      <Droplets className="h-4 w-4 md:h-5 md:w-5 text-green-600" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Recurso Hídrico</p>
-                      <p className="font-medium">{anuncio.detalhes?.recurso_hidrico || "Não informado"}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-3">
-                    <div className="bg-green-50 p-3 rounded-full">
-                      <Zap className="h-5 w-5 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Energia</p>
-                      <p className="font-medium">{anuncio.detalhes?.energia || "Não informado"}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs md:text-sm font-medium text-gray-500">Recurso Hídrico</p>
+                      <p className="font-medium text-sm md:text-base truncate">{anuncio.detalhes?.recurso_hidrico || "Não informado"}</p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center space-x-3">
-                    <div className="bg-green-50 p-3 rounded-full">
-                      <Mountain className="h-5 w-5 text-green-600" />
+                  <div className="flex items-center space-x-2 md:space-x-3">
+                    <div className="bg-green-50 p-2 md:p-3 rounded-full flex-shrink-0">
+                      <Zap className="h-4 w-4 md:h-5 md:w-5 text-green-600" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Tipo de Solo</p>
-                      <p className="font-medium">{anuncio.detalhes?.tipo_solo || "Não informado"}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs md:text-sm font-medium text-gray-500">Energia</p>
+                      <p className="font-medium text-sm md:text-base truncate">{anuncio.detalhes?.energia || "Não informado"}</p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center space-x-3">
-                    <div className="bg-green-50 p-3 rounded-full">
-                      <FileText className="h-5 w-5 text-green-600" />
+                  <div className="flex items-center space-x-2 md:space-x-3">
+                    <div className="bg-green-50 p-2 md:p-3 rounded-full flex-shrink-0">
+                      <Mountain className="h-4 w-4 md:h-5 md:w-5 text-green-600" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Documentação</p>
-                      <p className="font-medium">{anuncio.detalhes?.documentacao || "Não informado"}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs md:text-sm font-medium text-gray-500">Tipo de Solo</p>
+                      <p className="font-medium text-sm md:text-base truncate">{anuncio.detalhes?.tipo_solo || "Não informado"}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2 md:space-x-3">
+                    <div className="bg-green-50 p-2 md:p-3 rounded-full flex-shrink-0">
+                      <FileText className="h-4 w-4 md:h-5 md:w-5 text-green-600" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs md:text-sm font-medium text-gray-500">Documentação</p>
+                      <p className="font-medium text-sm md:text-base truncate">{anuncio.detalhes?.documentacao || "Não informado"}</p>
                     </div>
                   </div>
                   
@@ -558,25 +775,82 @@ export default function AnuncioDetalhesPage() {
           
           <TabsContent value="localizacao" className="mt-0">
             <Card className="border-0 shadow-md">
-              <CardHeader>
-                <CardTitle className="text-green-900">Localização</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-green-900 text-base md:text-lg flex items-center">
+                  <MapPin className="h-5 w-5 mr-2 text-green-600" />
+                  Localização da Propriedade
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="bg-gray-200 rounded-lg h-80 flex items-center justify-center overflow-hidden">
-                  <img 
-                    src="https://images.unsplash.com/photo-1569336415962-a4bd9f69c07a?q=80&w=2069&auto=format&fit=crop" 
-                    alt="Mapa da localização" 
-                    className="w-full h-full object-cover opacity-80" 
-                  />
-                  <div className="absolute flex flex-col items-center">
-                    <MapPin className="h-8 w-8 text-green-700" />
-                    <p className="bg-white/80 px-3 py-1 rounded-full text-sm font-medium text-green-900">
-                      {anuncio.detalhes?.coordenadas ? 
-                        "Localização Exata" : 
-                        "Localização aproximada"}
+                {anuncio.detalhes?.coordenadas ? (
+                  <div className="space-y-4">
+                    {/* Mapa do Google Maps sem necessidade de API Key */}
+                    <div className="rounded-lg overflow-hidden border border-gray-200 shadow-md">
+                      <iframe
+                        width="100%"
+                        height="400"
+                        frameBorder="0"
+                        style={{ border: 0 }}
+                        referrerPolicy="no-referrer-when-downgrade"
+                        src={`https://maps.google.com/maps?q=${anuncio.detalhes.coordenadas}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                        allowFullScreen
+                      ></iframe>
+                    </div>
+                    
+                    {/* Informações da Localização */}
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-semibold text-green-800 mb-1">
+                            📍 Coordenadas GPS
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            {anuncio.detalhes.coordenadas}
+                          </div>
+                        </div>
+                        <Badge className="bg-green-600">Localização Verificada</Badge>
+                      </div>
+                    </div>
+                    
+                    {/* Botões de ação do mapa */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${anuncio.detalhes.coordenadas}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button className="w-full bg-green-600 hover:bg-green-700">
+                          <MapPin className="h-4 w-4 mr-2" />
+                          Abrir no Google Maps
+                        </Button>
+                      </a>
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${anuncio.detalhes.coordenadas}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button variant="outline" className="w-full border-green-600 text-green-700 hover:bg-green-50">
+                          <svg className="h-4 w-4 mr-2" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
+                            <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+                          </svg>
+                          Como Chegar
+                        </Button>
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-gray-100 rounded-lg h-80 flex items-center justify-center">
+                    <div className="text-center">
+                      <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 font-medium mb-2">
+                        Localização Aproximada
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        As coordenadas exatas não foram informadas pelo anunciante
                     </p>
                   </div>
                 </div>
+                )}
                 
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8">
                   <div className="flex items-center space-x-3">
@@ -624,38 +898,65 @@ export default function AnuncioDetalhesPage() {
           </TabsContent>
         </Tabs>
         
-        {/* Propriedades relacionadas */}
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold text-green-900 mb-6">Propriedades Semelhantes</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[1, 2, 3].map((item) => (
-              <Card key={item} className="overflow-hidden border-0 shadow-md hover:shadow-xl transition duration-300">
-                <div className="h-48 bg-gray-200 relative">
-                  <img 
-                    src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1932&auto=format&fit=crop" 
-                    alt="Imagem da propriedade" 
-                    className="w-full h-full object-cover" 
-                  />
-                  <Badge className="absolute top-3 left-3 bg-green-600 text-white">
-                    Fazenda
-                  </Badge>
-                </div>
-                <CardContent className="pt-4">
-                  <h3 className="font-bold text-lg mb-1">Fazenda Exemplo {item}</h3>
-                  <p className="text-gray-500 text-sm flex items-center mb-2">
-                    <MapPin className="h-3 w-3 mr-1" />
-                    Cidade Exemplo, UF
-                  </p>
-                  <div className="flex justify-between items-center mt-3">
-                    <p className="font-bold text-green-700">R$ 1.500.000</p>
-                    <p className="text-sm text-gray-500">120 hectares</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
       </main>
+
+      {/* Modal de Mensagem */}
+      <Dialog open={modalMensagem} onOpenChange={setModalMensagem}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enviar Mensagem</DialogTitle>
+            <DialogDescription>
+              Envie uma mensagem direta para o anunciante sobre esta propriedade.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="nomeMsg">Seu nome</Label>
+              <Input id="nomeMsg" placeholder="Seu nome completo" />
+                </div>
+            <div>
+              <Label htmlFor="emailMsg">E-mail</Label>
+              <Input id="emailMsg" type="email" placeholder="seu@email.com" />
+                  </div>
+            <div>
+              <Label htmlFor="telefoneMsg">Telefone</Label>
+              <Input id="telefoneMsg" placeholder="(11) 99999-9999" />
+          </div>
+            <div>
+              <Label htmlFor="assuntoMsg">Assunto</Label>
+              <Input id="assuntoMsg" placeholder="Interesse na propriedade" />
+        </div>
+            <div>
+              <Label htmlFor="mensagemMsg">Mensagem</Label>
+              <Textarea 
+                id="mensagemMsg" 
+                placeholder="Olá! Tenho interesse em saber mais sobre esta propriedade..."
+                className="min-h-[120px]"
+              />
+            </div>
+            <div className="flex space-x-2">
+              <Button 
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                onClick={() => {
+                  // Aqui você pode implementar o envio da mensagem
+                  alert('Mensagem enviada com sucesso! O anunciante entrará em contato em breve.');
+                  setModalMensagem(false);
+                }}
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                Enviar
+              </Button>
+              <Button 
+                variant="outline" 
+                className="flex-1"
+                onClick={() => setModalMensagem(false)}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       
       {/* Footer */}
       <footer className="bg-gradient-to-b from-gray-900 to-gray-950 text-white mt-16 relative">
@@ -670,7 +971,7 @@ export default function AnuncioDetalhesPage() {
         <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
-              <h3 className="text-xl font-bold mb-4 bg-gradient-to-r from-green-400 to-green-600 text-transparent bg-clip-text">Portal de Fazendas</h3>
+              <h3 className="text-xl font-bold mb-4 bg-gradient-to-r from-green-400 to-green-600 text-transparent bg-clip-text">Fazendeiro IA</h3>
               <p className="text-gray-300">
                 Encontre as melhores propriedades rurais para compra ou arrendamento.
               </p>
@@ -695,13 +996,13 @@ export default function AnuncioDetalhesPage() {
             <div>
               <h3 className="text-xl font-bold mb-4 text-green-400">Contato</h3>
               <p className="text-gray-300">
-                Email: contato@portalfazendas.com.br<br />
+                Email: contato@fazendeiroia.com.br<br />
                 Telefone: (11) 4321-1234
               </p>
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; {new Date().getFullYear()} Portal de Fazendas. Todos os direitos reservados.</p>
+            <p>&copy; {new Date().getFullYear()} Fazendeiro IA. Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>

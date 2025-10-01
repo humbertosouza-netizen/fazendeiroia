@@ -188,10 +188,6 @@ export default function AiBuscaFazenda({ anuncios, onResultadosBusca }: AiBuscaF
                   {/* Mostrar cards de resultados quando houver anúncios na mensagem - versão mobile friendly */}
                   {msg.anuncios && msg.anuncios.length > 0 && (
                     <div className="mt-3 sm:mt-4 pt-2 sm:pt-4 border-t border-green-100">
-                      <h3 className="text-xs sm:text-sm font-medium text-green-800 mb-2 sm:mb-3 flex items-center">
-                        <Wheat className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 text-green-600" />
-                        Propriedades que podem te interessar:
-                      </h3>
                       <div className="grid grid-cols-1 gap-2 sm:gap-3">
                         {msg.anuncios.map(anuncio => (
                           <Link 

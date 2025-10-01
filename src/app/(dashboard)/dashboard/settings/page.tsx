@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, User, Bell, Shield, Moon, Sun } from "lucide-react";
+import { Settings, User, Bell, Shield } from "lucide-react";
 import { 
   Select, 
   SelectContent, 
@@ -26,7 +26,6 @@ export default function SettingsPage() {
   const [cpf, setCpf] = useState("");
   const [notificacoesEmail, setNotificacoesEmail] = useState(true);
   const [notificacoesApp, setNotificacoesApp] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
   const [mensagem, setMensagem] = useState({ tipo: "", texto: "" });
 
   useEffect(() => {
@@ -183,10 +182,6 @@ export default function SettingsPage() {
     }
   };
 
-  const toggleTema = () => {
-    setDarkMode(!darkMode);
-    // Aqui você implementaria a lógica para mudar o tema da aplicação
-  };
 
   if (loading) {
     return (
@@ -209,10 +204,6 @@ export default function SettingsPage() {
           <TabsTrigger value="notificacoes" className="flex items-center">
             <Bell className="h-4 w-4 mr-2" />
             Notificações
-          </TabsTrigger>
-          <TabsTrigger value="aparencia" className="flex items-center">
-            <Moon className="h-4 w-4 mr-2" />
-            Aparência
           </TabsTrigger>
           <TabsTrigger value="seguranca" className="flex items-center">
             <Shield className="h-4 w-4 mr-2" />
@@ -404,40 +395,6 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
         
-        {/* Tab de Aparência */}
-        <TabsContent value="aparencia">
-          <Card>
-            <CardHeader>
-              <CardTitle>Preferências de Aparência</CardTitle>
-              <CardDescription>
-                Personalize a aparência da dashboard
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Tema Escuro</p>
-                  <p className="text-sm text-gray-500">
-                    Alterar entre tema claro e escuro
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    onClick={toggleTema}
-                  >
-                    {darkMode ? (
-                      <Sun className="h-5 w-5" />
-                    ) : (
-                      <Moon className="h-5 w-5" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
         
         {/* Tab de Segurança */}
         <TabsContent value="seguranca">

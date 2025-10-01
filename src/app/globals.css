@@ -119,4 +119,83 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+/* Mobile viewport fix */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
+/* Image container fixes */
+.image-container {
+  position: relative;
+  overflow: hidden;
+  max-height: 400px;
+}
+
+.image-container img {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+  max-height: 400px;
+}
+
+/* Chat button animation */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-in-out;
+}
+
+/* Pulse animation for chat button */
+@keyframes pulse-subtle {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+  
+  /* Prevent horizontal scroll on mobile */
+  @media (max-width: 768px) {
+    body {
+      position: relative;
+      width: 100vw;
+      max-width: 100vw;
+    }
+    
+    /* Ensure content doesn't exceed viewport */
+    main, .main-content {
+      max-width: 100vw;
+      overflow-x: hidden;
+    }
+    
+    /* Full width cards on mobile */
+    .mobile-full-width {
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+      border-radius: 0 !important;
+    }
+    
+    /* Remove padding from main content on mobile */
+    main {
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+  }
 }

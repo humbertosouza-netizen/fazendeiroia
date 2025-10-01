@@ -42,8 +42,7 @@ export default function Home() {
         </div>
         
         <h1 className="text-5xl font-extrabold tracking-tight text-gray-900 sm:text-6xl">
-          <span className="block">Fazendeiro</span>
-          <span className="block bg-gradient-to-r from-green-600 to-green-800 text-transparent bg-clip-text">Fazendas</span>
+          <span className="block bg-gradient-to-r from-green-600 to-green-800 text-transparent bg-clip-text">Fazendeiro IA</span>
         </h1>
         
         <p className="mt-6 text-xl text-gray-600 max-w-2xl mx-auto">

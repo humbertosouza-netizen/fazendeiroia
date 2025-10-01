@@ -2,11 +2,22 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PlusCircle, Edit, Trash2, Search, Filter, ArrowUpDown, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Search, Filter, ArrowUpDown, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import CadastroIAAnuncioModal from "@/components/CadastroIAAnuncioModal";
+import VisualizarAnuncioModal from "@/components/VisualizarAnuncioModal";
+import GerenciarImagens from "@/components/GerenciarImagens";
 import { 
   Select, 
   SelectContent, 
@@ -24,7 +35,12 @@ export default function AnunciosPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [modalAberto, setModalAberto] = useState(false);
+  const [modalIAAberto, setModalIAAberto] = useState(false);
   const [modalExclusaoAberto, setModalExclusaoAberto] = useState(false);
+  const [modalVisualizacaoAberto, setModalVisualizacaoAberto] = useState(false);
+  const [anuncioParaVisualizar, setAnuncioParaVisualizar] = useState<Anuncio | null>(null);
+  const [imagensSelecionadas, setImagensSelecionadas] = useState<FileList | null>(null);
+  const [uploadandoImagens, setUploadandoImagens] = useState(false);
   const [tipoAnuncio, setTipoAnuncio] = useState("fazenda");
   const [tipoOferta, setTipoOferta] = useState("venda");
   const [modoEdicao, setModoEdicao] = useState(false);
@@ -323,12 +339,19 @@ export default function AnunciosPage() {
         }
       } else {
         // Criar novo anúncio
+        // Formatar preço corretamente
+        const precoFormatado = novoAnuncio.preco 
+          ? `R$ ${parseInt(novoAnuncio.preco).toLocaleString('pt-BR')}`
+          : "R$ 0,00";
+          
         const novoAnuncioCompleto: Anuncio = {
           ...novoAnuncio,
-          preco: novoAnuncio.preco ? `R$ ${novoAnuncio.preco}` : "R$ 0,00",
+          preco: precoFormatado,
           visualizacoes: 0,
           datapublicacao: new Date().toLocaleDateString("pt-BR")
         };
+        
+        console.log('📝 Dados do anúncio a ser criado:', novoAnuncioCompleto);
         
         const detalhesCompletos: FazendaDetalhes = {
           ...detalhes as FazendaDetalhes,
@@ -338,11 +361,54 @@ export default function AnunciosPage() {
         
         const resultado = await anunciosService.criarAnuncio(novoAnuncioCompleto, detalhesCompletos);
         
-        if (resultado) {
-          toast({
-            title: "Sucesso",
-            description: "Anúncio criado com sucesso!",
-          });
+        if (resultado && resultado.id) {
+          console.log('✅ Anúncio criado com ID:', resultado.id);
+          console.log('🖼️ Imagens selecionadas:', imagensSelecionadas?.length || 0);
+          
+          // Upload das imagens se houver
+          if (imagensSelecionadas && imagensSelecionadas.length > 0) {
+            console.log('🚀 Iniciando upload das imagens...');
+            setUploadandoImagens(true);
+            try {
+              const uploadResultado = await anunciosService.uploadImagensAnuncio(imagensSelecionadas, resultado.id);
+              
+              if (uploadResultado.sucesso > 0) {
+                toast({
+                  title: "Sucesso",
+                  description: `Anúncio criado e ${uploadResultado.sucesso} imagem(ns) enviada(s) com sucesso!`,
+                });
+              } else {
+                toast({
+                  title: "Sucesso",
+                  description: "Anúncio criado com sucesso!",
+                });
+              }
+              
+              if (uploadResultado.erros.length > 0) {
+                uploadResultado.erros.forEach(erro => 
+                  toast({
+                    title: "Aviso",
+                    description: erro,
+                    variant: "destructive",
+                  })
+                );
+              }
+            } catch (error) {
+              console.error("Erro no upload das imagens:", error);
+              toast({
+                title: "Aviso",
+                description: "Anúncio criado, mas houve erro ao enviar imagens.",
+                variant: "destructive",
+              });
+            } finally {
+              setUploadandoImagens(false);
+            }
+          } else {
+            toast({
+              title: "Sucesso",
+              description: "Anúncio criado com sucesso!",
+            });
+          }
           
           // Resetar o formulário e carregar anúncios
           setNovoAnuncio({
@@ -370,6 +436,7 @@ export default function AnunciosPage() {
             tipo_oferta: "venda",
           });
           
+          setImagensSelecionadas(null);
           await carregarAnuncios();
         } else {
           throw new Error("Não foi possível criar o anúncio");
@@ -393,8 +460,15 @@ export default function AnunciosPage() {
   const abrirEdicao = async (anuncio: Anuncio) => {
     try {
       setCarregando(true);
+      setImagensSelecionadas(null); // Limpar imagens selecionadas
+      
+      console.log('🔍 Carregando anúncio para edição:', anuncio.id);
+      
       // Buscar detalhes completos do anúncio
       const anuncioCompleto = await anunciosService.getAnuncioDetalhes(anuncio.id!);
+      
+      console.log('📋 Anúncio completo carregado:', anuncioCompleto);
+      console.log('📋 Detalhes da fazenda:', anuncioCompleto?.detalhes);
       
       if (anuncioCompleto) {
         setAnuncioEmEdicao(anuncioCompleto);
@@ -404,9 +478,13 @@ export default function AnunciosPage() {
         // Definir o tipo de oferta com base nos detalhes
         if (anuncioCompleto.detalhes?.tipo_oferta) {
           setTipoOferta(anuncioCompleto.detalhes.tipo_oferta);
+          console.log('✅ Tipo de oferta definido:', anuncioCompleto.detalhes.tipo_oferta);
         } else {
           setTipoOferta("venda");
+          console.log('⚠️ Tipo de oferta padrão definido: venda');
         }
+        
+        console.log('✅ Modal de edição aberto com dados carregados');
       } else {
         throw new Error("Não foi possível carregar os detalhes do anúncio");
       }
@@ -422,18 +500,24 @@ export default function AnunciosPage() {
     }
   };
   
-  // Função para abrir o modal para criar novo anúncio
-  const abrirNovoAnuncio = () => {
-    setAnuncioEmEdicao(null);
-    setModoEdicao(false);
-    setModalAberto(true);
-    setTipoOferta("venda");
-  };
   
   // Função para abrir o modal de confirmação de exclusão
   const confirmarExclusao = (anuncio: Anuncio) => {
     setAnuncioParaExcluir(anuncio);
     setModalExclusaoAberto(true);
+  };
+
+  // Função para abrir o modal de visualização
+  const visualizarAnuncio = (anuncio: Anuncio) => {
+    setAnuncioParaVisualizar(anuncio);
+    setModalVisualizacaoAberto(true);
+  };
+
+  // Função para abrir o anúncio no portal
+  const verNoPortal = (anuncio: Anuncio) => {
+    if (anuncio.id) {
+      window.open(`/portal/anuncio/${anuncio.id}`, '_blank');
+    }
   };
   
   // Função para excluir o anúncio
@@ -478,26 +562,15 @@ export default function AnunciosPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold tracking-tight">Meus Anúncios</h1>
-        <Button 
-          className="flex items-center" 
-          onClick={abrirNovoAnuncio}
-        >
-          <PlusCircle className="h-4 w-4 mr-2" />
-          Criar Anúncio
+      </div>
+      <div>
+        <Button variant="outline" onClick={() => setModalIAAberto(true)} className="w-full md:w-auto">
+          🤖 Cadastrar propriedade com IA
         </Button>
       </div>
       
-      <Tabs defaultValue="todos" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="todos">Todos</TabsTrigger>
-          <TabsTrigger value="ativos">Ativos</TabsTrigger>
-          <TabsTrigger value="pausados">Pausados</TabsTrigger>
-          <TabsTrigger value="vendidos">Vendidos</TabsTrigger>
-        </TabsList>
-        
-        {/* Tab de Todos os Anúncios */}
-        <TabsContent value="todos" className="space-y-4">
-          <Card>
+      <div className="space-y-4">
+          <Card className="mobile-full-width">
             <CardHeader className="pb-2">
               <CardTitle>Gerenciar Anúncios</CardTitle>
               <CardDescription>
@@ -569,20 +642,34 @@ export default function AnunciosPage() {
                             </TableCell>
                             <TableCell>{new Date(anuncio.datapublicacao).toLocaleDateString("pt-BR")}</TableCell>
                             <TableCell className="text-right">
-                              <div className="flex justify-end space-x-2">
+                              <div className="flex justify-end flex-wrap gap-2">
                                 <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  onClick={() => abrirEdicao(anuncio)}
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => visualizarAnuncio(anuncio)}
                                 >
-                                  <Edit className="h-4 w-4" />
+                                  Ver resumo
                                 </Button>
                                 <Button 
-                                  variant="ghost" 
-                                  size="icon"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => verNoPortal(anuncio)}
+                                >
+                                  Ver no portal
+                                </Button>
+                                <Button 
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => abrirEdicao(anuncio)}
+                                >
+                                  Editar
+                                </Button>
+                                <Button 
+                                  variant="destructive"
+                                  size="sm"
                                   onClick={() => confirmarExclusao(anuncio)}
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  Excluir
                                 </Button>
                               </div>
                             </TableCell>
@@ -640,7 +727,7 @@ export default function AnunciosPage() {
           </Card>
           
           <div className="grid gap-4 md:grid-cols-3">
-            <Card>
+            <Card className="mobile-full-width">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Anúncios por Status</CardTitle>
               </CardHeader>
@@ -659,7 +746,7 @@ export default function AnunciosPage() {
               </CardContent>
             </Card>
             
-            <Card>
+            <Card className="mobile-full-width">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Categorias Populares</CardTitle>
               </CardHeader>
@@ -678,7 +765,7 @@ export default function AnunciosPage() {
               </CardContent>
             </Card>
             
-            <Card>
+            <Card className="mobile-full-width">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Visualizações Totais</CardTitle>
               </CardHeader>
@@ -699,24 +786,23 @@ export default function AnunciosPage() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-        
-        {/* Conteúdo para as outras abas... */}
-      </Tabs>
+      </div>
       
-      {/* Modal para criar ou editar anúncios */}
-      {modalAberto && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto p-4">
-          <Card className="w-full max-w-3xl max-h-screen overflow-y-auto">
-            <CardHeader>
-              <CardTitle>{modoEdicao ? "Editar Anúncio" : "Cadastrar Fazenda"}</CardTitle>
-              <CardDescription>
-                {modoEdicao 
-                  ? "Atualize as informações da sua fazenda" 
-                  : "Preencha os detalhes da fazenda para venda ou arrendamento"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
+      {/* Modal para criar ou editar anúncios (estilo similar ao IA) */}
+      <Dialog open={modalAberto} onOpenChange={setModalAberto}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-700">
+              {modoEdicao ? "Editar Anúncio" : "Cadastrar Fazenda"}
+            </DialogTitle>
+            <DialogDescription>
+              {modoEdicao
+                ? "Atualize as informações da sua fazenda. Ao salvar, os dados serão refletidos no portal."
+                : "Preencha os detalhes da fazenda para venda ou arrendamento."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
               {carregando ? (
                 <div className="py-10 flex flex-col items-center">
                   <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
@@ -760,7 +846,7 @@ export default function AnunciosPage() {
                       <div className="space-y-2">
                         <Label htmlFor="estado">Estado</Label>
                         <Select
-                          value={modoEdicao && anuncioEmEdicao?.detalhes?.estado || detalhes.estado}
+                          value={modoEdicao && anuncioEmEdicao?.detalhes?.estado ? anuncioEmEdicao.detalhes.estado : detalhes.estado}
                           onValueChange={(value) => handleDetalhesChange("estado", value)}
                         >
                           <SelectTrigger id="estado">
@@ -781,7 +867,7 @@ export default function AnunciosPage() {
                         <Input 
                           id="regiao" 
                           placeholder="Região da propriedade" 
-                          value={modoEdicao && anuncioEmEdicao?.detalhes?.regiao || detalhes.regiao}
+                          value={modoEdicao && anuncioEmEdicao?.detalhes?.regiao ? anuncioEmEdicao.detalhes.regiao : detalhes.regiao}
                           onChange={(e) => handleDetalhesChange("regiao", e.target.value)}
                         />
                       </div>
@@ -789,7 +875,7 @@ export default function AnunciosPage() {
                       <div className="space-y-2">
                         <Label htmlFor="finalidade">Finalidade</Label>
                         <Select
-                          value={modoEdicao && anuncioEmEdicao?.detalhes?.finalidade || detalhes.finalidade}
+                          value={modoEdicao && anuncioEmEdicao?.detalhes?.finalidade ? anuncioEmEdicao.detalhes.finalidade : detalhes.finalidade}
                           onValueChange={(value) => handleDetalhesChange("finalidade", value)}
                         >
                           <SelectTrigger id="finalidade">
@@ -811,30 +897,46 @@ export default function AnunciosPage() {
                           id="area" 
                           type="number" 
                           placeholder="Área em hectares" 
-                          value={modoEdicao && anuncioEmEdicao?.detalhes?.area || detalhes.area}
+                          value={modoEdicao && anuncioEmEdicao?.detalhes?.area ? anuncioEmEdicao.detalhes.area : detalhes.area}
                           onChange={(e) => handleDetalhesChange("area", parseFloat(e.target.value))}
                         />
                       </div>
                       
-                      <div className="space-y-2">
-                        <Label htmlFor="preco">Preço (R$)</Label>
-                        <Input 
-                          id="preco" 
-                          type="number" 
-                          placeholder="Valor em reais" 
-                          value={modoEdicao && anuncioEmEdicao 
-                            ? anuncioEmEdicao.preco.replace("R$ ", "") 
-                            : novoAnuncio.preco}
-                          onChange={handleInputChange}
-                        />
-                      </div>
+                     <div className="space-y-2">
+                       <Label htmlFor="preco">Preço (R$)</Label>
+                       <Input 
+                         id="preco" 
+                         type="text" 
+                         placeholder="Ex: 1000000" 
+                         value={modoEdicao && anuncioEmEdicao 
+                           ? anuncioEmEdicao.preco.replace(/[R$\s.,]/g, "") 
+                           : novoAnuncio.preco.replace(/[R$\s.,]/g, "")}
+                         onChange={(e) => {
+                           const valor = e.target.value.replace(/\D/g, ""); // Remove tudo que não é dígito
+                           if (modoEdicao && anuncioEmEdicao) {
+                             setAnuncioEmEdicao(prev => ({
+                               ...prev,
+                               preco: valor
+                             }));
+                           } else {
+                             setNovoAnuncio(prev => ({
+                               ...prev,
+                               preco: valor
+                             }));
+                           }
+                         }}
+                       />
+                       <p className="text-xs text-gray-500">
+                         Digite apenas números (ex: 1000000 para R$ 1.000.000,00)
+                       </p>
+                     </div>
                       
                       <div className="space-y-2">
                         <Label htmlFor="cidade">Cidade</Label>
                         <Input 
                           id="cidade" 
                           placeholder="Cidade onde está localizada" 
-                          value={modoEdicao && anuncioEmEdicao?.detalhes?.cidade || detalhes.cidade}
+                          value={modoEdicao && anuncioEmEdicao?.detalhes?.cidade ? anuncioEmEdicao.detalhes.cidade : detalhes.cidade}
                           onChange={(e) => handleDetalhesChange("cidade", e.target.value)}
                         />
                       </div>
@@ -842,7 +944,7 @@ export default function AnunciosPage() {
                       <div className="space-y-2">
                         <Label htmlFor="recurso_hidrico">Recurso Hídrico</Label>
                         <Select
-                          value={modoEdicao && anuncioEmEdicao?.detalhes?.recurso_hidrico || detalhes.recurso_hidrico}
+                          value={modoEdicao && anuncioEmEdicao?.detalhes?.recurso_hidrico ? anuncioEmEdicao.detalhes.recurso_hidrico : detalhes.recurso_hidrico}
                           onValueChange={(value) => handleDetalhesChange("recurso_hidrico", value)}
                         >
                           <SelectTrigger id="recurso_hidrico">
@@ -861,7 +963,7 @@ export default function AnunciosPage() {
                       <div className="space-y-2">
                         <Label htmlFor="energia">Energia</Label>
                         <Select
-                          value={modoEdicao && anuncioEmEdicao?.detalhes?.energia || detalhes.energia}
+                          value={modoEdicao && anuncioEmEdicao?.detalhes?.energia ? anuncioEmEdicao.detalhes.energia : detalhes.energia}
                           onValueChange={(value) => handleDetalhesChange("energia", value)}
                         >
                           <SelectTrigger id="energia">
@@ -882,7 +984,7 @@ export default function AnunciosPage() {
                         <Input 
                           id="tipo_solo" 
                           placeholder="Descrição do tipo de solo" 
-                          value={modoEdicao && anuncioEmEdicao?.detalhes?.tipo_solo || detalhes.tipo_solo}
+                          value={modoEdicao && anuncioEmEdicao?.detalhes?.tipo_solo ? anuncioEmEdicao.detalhes.tipo_solo : detalhes.tipo_solo}
                           onChange={(e) => handleDetalhesChange("tipo_solo", e.target.value)}
                         />
                       </div>
@@ -890,7 +992,7 @@ export default function AnunciosPage() {
                       <div className="space-y-2">
                         <Label htmlFor="documentacao">Documentação</Label>
                         <Select
-                          value={modoEdicao && anuncioEmEdicao?.detalhes?.documentacao || detalhes.documentacao}
+                          value={modoEdicao && anuncioEmEdicao?.detalhes?.documentacao ? anuncioEmEdicao.detalhes.documentacao : detalhes.documentacao}
                           onValueChange={(value) => handleDetalhesChange("documentacao", value)}
                         >
                           <SelectTrigger id="documentacao">
@@ -916,7 +1018,8 @@ export default function AnunciosPage() {
                             <Checkbox 
                               id={estrutura.id} 
                               checked={modoEdicao && anuncioEmEdicao?.detalhes?.estruturas?.includes(estrutura.id) 
-                                || detalhes.estruturas?.includes(estrutura.id)}
+                                ? anuncioEmEdicao.detalhes.estruturas.includes(estrutura.id)
+                                : detalhes.estruturas?.includes(estrutura.id) || false}
                               onCheckedChange={(checked) => handleEstruturaChange(estrutura.id, checked as boolean)}
                             />
                             <Label htmlFor={estrutura.id}>{estrutura.label}</Label>
@@ -925,44 +1028,110 @@ export default function AnunciosPage() {
                       </div>
                     </div>
                     
-                    {/* Upload de Imagens */}
-                    <div className="space-y-3 mt-4">
-                      <Label>Imagens</Label>
-                      <div className="border-2 border-dashed border-gray-300 p-4 rounded-md text-center">
-                        <p className="text-sm text-gray-500 mb-2">
-                          Arraste as imagens ou clique para fazer upload
-                        </p>
-                        <Input 
-                          type="file" 
-                          multiple 
-                          className="w-full cursor-pointer" 
-                          accept="image/*"
-                          // Implementar lógica de upload posteriormente
-                        />
-                      </div>
-                    </div>
+                   {/* Gerenciamento de Imagens */}
+                   <div className="space-y-3 mt-4">
+                     <Label>Imagens</Label>
+                     
+                     {modoEdicao && anuncioEmEdicao?.id ? (
+                       <GerenciarImagens 
+                         anuncioId={anuncioEmEdicao.id}
+                         onImagensAtualizadas={() => {
+                           console.log('Imagens atualizadas');
+                         }}
+                       />
+                     ) : (
+                       <div className="border-2 border-dashed border-gray-300 p-4 rounded-md text-center">
+                         <p className="text-sm text-gray-500 mb-2">
+                           Arraste as imagens ou clique para fazer upload
+                         </p>
+                         <Input 
+                           type="file" 
+                           multiple 
+                           className="w-full cursor-pointer" 
+                           accept="image/*"
+                           onChange={(e) => {
+                             const files = e.target.files;
+                             if (files && files.length > 0) {
+                               setImagensSelecionadas(files);
+                               console.log('Arquivos selecionados:', files.length, 'imagem(ns)');
+                             }
+                           }}
+                         />
+                         <p className="text-xs text-gray-400 mt-1">
+                           Formatos aceitos: JPG, PNG, WebP. Máximo 5MB por imagem.
+                         </p>
+                         
+                         {/* Preview das imagens selecionadas */}
+                         {imagensSelecionadas && imagensSelecionadas.length > 0 && (
+                           <div className="mt-4">
+                             <p className="text-sm font-medium text-gray-700 mb-2">
+                               Imagens selecionadas ({imagensSelecionadas.length}):
+                             </p>
+                             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                               {Array.from(imagensSelecionadas).map((file, index) => (
+                                 <div key={index} className="relative">
+                                   <img
+                                     src={URL.createObjectURL(file)}
+                                     alt={`Preview ${index + 1}`}
+                                     className="w-full h-20 object-cover rounded border"
+                                   />
+                                   <div className="absolute top-1 right-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
+                                     {Math.round(file.size / 1024)}KB
+                                   </div>
+                                 </div>
+                               ))}
+                             </div>
+                           </div>
+                         )}
+                         
+                         {/* Indicador de upload */}
+                         {uploadandoImagens && (
+                           <div className="mt-4 flex items-center justify-center">
+                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mr-2"></div>
+                             <span className="text-sm text-gray-600">Enviando imagens...</span>
+                           </div>
+                         )}
+                       </div>
+                     )}
+                   </div>
                   </div>
                   
                   {/* Demais seções do formulário... */}
                 </>
               )}
-            </CardContent>
-            <div className="flex justify-end gap-2 p-6 pt-0">
-              <Button variant="outline" onClick={() => setModalAberto(false)} disabled={salvando}>
-                Cancelar
-              </Button>
-              <Button onClick={salvarAnuncio} disabled={salvando}>
-                {salvando ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Salvando...
-                  </>
-                ) : modoEdicao ? "Salvar Alterações" : "Publicar Anúncio"}
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
+          </div>
+
+          <DialogFooter className="pt-2">
+            <DialogClose asChild>
+              <Button variant="outline" disabled={salvando}>Cancelar</Button>
+            </DialogClose>
+            <Button onClick={salvarAnuncio} disabled={salvando} className="bg-green-700 hover:bg-green-800">
+              {salvando ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : modoEdicao ? "Salvar Alterações" : "Publicar Anúncio"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal IA */}
+      <CadastroIAAnuncioModal
+        open={modalIAAberto}
+        onOpenChange={setModalIAAberto}
+        onCreated={async () => {
+          await carregarAnuncios();
+        }}
+      />
+
+      {/* Modal de Visualização */}
+      <VisualizarAnuncioModal
+        anuncio={anuncioParaVisualizar}
+        open={modalVisualizacaoAberto}
+        onOpenChange={setModalVisualizacaoAberto}
+      />
 
       {/* Modal de confirmação de exclusão */}
       {modalExclusaoAberto && anuncioParaExcluir && (

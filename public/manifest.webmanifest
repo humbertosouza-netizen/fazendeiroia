@@ -1,0 +1,17 @@
+{
+  "name": "Portal de Fazendas",
+  "short_name": "Fazendas",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#166534",
+  "description": "Portal de Fazendas com assistente virtual Fazendeiro IA",
+  "icons": [
+    { "src": "/images/fazendeiro-ia-logo.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/images/fazendeiro-ia-logo.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/images/fazendeiro-ia-logo.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/images/fazendeiro-ia-logo.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
+
+

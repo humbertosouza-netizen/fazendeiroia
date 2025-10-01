@@ -166,7 +166,10 @@ export default function DashboardPage() {
         position: 'top' as const,
       },
     },
-  };
+    layout: {
+      padding: 0,
+    },
+  } as const;
 
   // Calcular taxa de conversão
   const taxaConversao = Math.round((totalLeads / (totalVisualizacoes || 1)) * 100);
@@ -270,7 +273,7 @@ export default function DashboardPage() {
       {/* Cards com métricas */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {metricas.map((metrica, index) => (
-          <Card key={index} className="shadow-sm">
+          <Card key={index} className="shadow-sm mobile-full-width">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -297,7 +300,7 @@ export default function DashboardPage() {
       {/* Gráficos */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Gráfico de Estatísticas */}
-        <Card className="shadow-sm">
+        <Card className="shadow-sm mobile-full-width">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center">
               <BarChart className="h-5 w-5 mr-2" />
@@ -305,14 +308,14 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
+            <div className="h-[300px] w-full overflow-hidden">
               <Line options={opcoesGrafico} data={dadosVisualizacoesGrafico} />
             </div>
           </CardContent>
         </Card>
         
         {/* Gráfico de Anúncios Ativos vs Inativos */}
-        <Card className="shadow-sm">
+        <Card className="shadow-sm mobile-full-width">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center">
               <PieChart className="h-5 w-5 mr-2" />
@@ -320,17 +323,12 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px] flex items-center justify-center">
-              <div className="w-[220px]">
+            <div className="h-[300px] w-full overflow-hidden flex items-center justify-center">
+              <div className="h-full w-full max-w-[360px]">
                 <Doughnut 
                   options={{
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                      legend: {
-                        position: 'bottom',
-                      },
-                    },
+                    ...opcoesGrafico,
+                    plugins: { legend: { position: 'bottom' } },
                   }} 
                   data={dadosStatusAnuncios} 
                 />
@@ -343,7 +341,7 @@ export default function DashboardPage() {
       {/* Leads e Ranking */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Gráfico de Leads */}
-        <Card className="shadow-sm">
+        <Card className="shadow-sm mobile-full-width">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center">
               <MessageSquare className="h-5 w-5 mr-2" />
@@ -351,14 +349,14 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
+            <div className="h-[300px] w-full overflow-hidden">
               <Bar options={opcoesGrafico} data={dadosLeadsGrafico} />
             </div>
           </CardContent>
         </Card>
         
         {/* Ranking de anúncios mais visualizados */}
-        <Card className="shadow-sm">
+        <Card className="shadow-sm mobile-full-width">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center">
               <Eye className="h-5 w-5 mr-2" />
@@ -390,7 +388,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Atividades recentes */}
-      <Card className="shadow-sm">
+      <Card className="shadow-sm mobile-full-width">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg flex items-center">
             <Clock className="h-5 w-5 mr-2" />

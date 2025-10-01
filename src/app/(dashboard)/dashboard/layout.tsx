@@ -26,11 +26,15 @@ import {
   User,
   Home,
   FileText,
-  MessageSquare
+  MessageSquare,
+  Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
+import dynamic from "next/dynamic";
+
+const MobileBottomNav = dynamic(() => import("@/components/MobileBottomNav"), { ssr: false });
 
 export default function DashboardLayout({
   children,
@@ -106,6 +110,12 @@ export default function DashboardLayout({
       icon: <Users className="h-5 w-5" /> 
     },
     { 
+      name: "Planos", 
+      href: "/planos", 
+      icon: <Sparkles className="h-5 w-5" />,
+      highlight: true
+    },
+    { 
       name: "Configurações", 
       href: "/dashboard/settings", 
       icon: <Settings className="h-5 w-5" /> 
@@ -119,7 +129,7 @@ export default function DashboardLayout({
   ];
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 w-full max-w-full overflow-hidden">
       {/* Sidebar para desktop */}
       <aside className="hidden md:flex w-64 flex-col fixed inset-y-0 z-50">
         <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
@@ -149,11 +159,14 @@ export default function DashboardLayout({
                   pathname === item.href && !item.external
                     ? 'bg-green-50 text-green-700'
                     : 'hover:bg-green-50'
-                } ${item.external ? 'text-green-600' : ''}`}
+                } ${item.external ? 'text-green-600' : ''} ${
+                  item.highlight ? 'bg-gradient-to-r from-yellow-50 to-green-50 border border-yellow-200 font-semibold text-green-800' : ''
+                }`}
                 target={item.external ? "_blank" : undefined}
               >
                 {item.icon}
                 <span className="ml-3">{item.name}</span>
+                {item.highlight && <span className="ml-auto text-xs bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full font-bold">40% OFF</span>}
                 {item.external && <ExternalLink className="ml-auto h-3 w-3" />}
               </Link>
             ))}
@@ -206,12 +219,15 @@ export default function DashboardLayout({
                     pathname === item.href && !item.external
                       ? 'bg-green-50 text-green-700'
                       : 'hover:bg-green-50'
-                  } ${item.external ? 'text-green-600' : ''}`}
+                  } ${item.external ? 'text-green-600' : ''} ${
+                    item.highlight ? 'bg-gradient-to-r from-yellow-50 to-green-50 border border-yellow-200 font-semibold text-green-800' : ''
+                  }`}
                   onClick={() => setMobileMenuOpen(false)}
                   target={item.external ? "_blank" : undefined}
                 >
                   {item.icon}
                   <span className="ml-3">{item.name}</span>
+                  {item.highlight && <span className="ml-auto text-xs bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full font-bold">40% OFF</span>}
                   {item.external && <ExternalLink className="ml-auto h-3 w-3" />}
                 </Link>
               ))}
@@ -230,8 +246,8 @@ export default function DashboardLayout({
       )}
 
       {/* Header e conteúdo principal */}
-      <div className="md:ml-64 flex-1 flex flex-col">
-        <header className="bg-white shadow-sm z-10 border-b border-gray-200">
+      <div className="md:ml-64 flex-1 flex flex-col w-full max-w-full overflow-hidden">
+        <header className="hidden md:block bg-white shadow-sm z-10 border-b border-gray-200">
           <div className="flex items-center justify-between px-4 py-3">
             <button
               className="md:hidden p-2 rounded-md text-gray-500 hover:text-gray-600"
@@ -270,9 +286,14 @@ export default function DashboardLayout({
         </header>
         
         {/* Conteúdo principal */}
-        <main className="flex-1 p-6 overflow-auto bg-gradient-to-b from-white to-gray-50">
+        <main
+          className="flex-1 px-0 py-4 md:px-6 md:py-6 overflow-auto bg-gradient-to-b from-white to-gray-50 w-full max-w-full"
+          style={{ paddingBottom: "calc(64px + max(env(safe-area-inset-bottom), 8px))" }}
+        >
           {children}
         </main>
+        {/* Navegação inferior mobile */}
+        <MobileBottomNav />
       </div>
     </div>
   );

@@ -3,9 +3,11 @@ import { supabase } from '@/lib/supabase';
 export interface Usuario {
   id?: string;
   nome: string;
+  nome_completo?: string;
   email?: string;
   avatar_url?: string;
   telefone?: string;
+  relacao_imovel?: string;
   status: string;
   plano: string;
   ultimo_acesso?: string;
@@ -45,8 +47,11 @@ const usuariosService = {
           .select(`
             id,
             nome,
+            nome_completo,
+            email,
             avatar_url,
             telefone,
+            relacao_imovel,
             status,
             plano,
             ultimo_acesso,
@@ -66,10 +71,7 @@ const usuariosService = {
         console.log("Usuários encontrados pelo método 1:", data?.length || 0);
         
         if (data && data.length > 0) {
-          return data.map(usuario => ({
-            ...usuario,
-            email: 'email@exemplo.com'
-          }));
+          return data;
         }
       } catch (firstMethodError) {
         console.error('Erro no método 1:', JSON.stringify(firstMethodError, null, 2));
@@ -81,6 +83,7 @@ const usuariosService = {
             .select(`
               id,
               nome,
+              email,
               avatar_url,
               telefone,
               status,
@@ -102,10 +105,7 @@ const usuariosService = {
           console.log("Usuários encontrados pelo método 2:", data?.length || 0);
           
           if (data && data.length > 0) {
-            return data.map(usuario => ({
-              ...usuario,
-              email: 'email@exemplo.com'
-            }));
+            return data;
           }
         } catch (secondMethodError) {
           console.error('Erro no método 2:', JSON.stringify(secondMethodError, null, 2));
@@ -123,10 +123,7 @@ const usuariosService = {
             console.log("Usuários encontrados pelo método 3 (RPC):", data?.length || 0);
             
             if (data && data.length > 0) {
-              return data.map(usuario => ({
-                ...usuario,
-                email: 'email@exemplo.com'
-              }));
+              return data;
             }
           } catch (thirdMethodError) {
             console.error('Erro no método 3 (RPC):', JSON.stringify(thirdMethodError, null, 2));
@@ -444,6 +441,7 @@ const usuariosService = {
         .insert({
           id: userId,
           nome: usuario.nome || 'Usuário Sem Nome',
+          email: usuario.email || 'email@exemplo.com',
           status: usuario.status || 'Ativo',
           plano: usuario.plano || 'Básico',
           ultimo_acesso: new Date().toISOString(),
@@ -521,22 +519,56 @@ const usuariosService = {
   // Excluir um usuário específico por ID
   async excluirUsuario(id: string) {
     try {
-      console.log('Tentando excluir usuário com ID:', id);
-      
-      const { error } = await supabase
+      console.log('🔍 Tentando excluir usuário com ID:', id);
+      console.log('🔍 Tipo do ID:', typeof id);
+      console.log('🔍 ID length:', id?.length);
+
+      // Verificar se o usuário existe antes de excluir
+      console.log('🔍 Verificando existência do usuário...');
+      const { data: existente, error: erroExistencia } = await supabase
+        .from('usuarios')
+        .select('id, nome')
+        .eq('id', id)
+        .limit(1)
+        .maybeSingle();
+
+      if (erroExistencia) {
+        console.error('❌ Erro ao verificar existência do usuário:', JSON.stringify(erroExistencia, null, 2));
+        throw erroExistencia;
+      }
+
+      if (!existente) {
+        console.warn('⚠️ Usuário não encontrado para exclusão:', id);
+        return false;
+      }
+
+      console.log('✅ Usuário encontrado:', existente.nome, 'ID:', existente.id);
+
+      // Excluir por coluna id
+      console.log('🗑️ Executando exclusão...');
+      const { error, count } = await supabase
         .from('usuarios')
         .delete()
-        .eq('id', id);
-      
+        .eq('id', id)
+        .select('id', { count: 'exact' });
+
       if (error) {
-        console.error('Erro ao excluir usuário:', JSON.stringify(error, null, 2));
+        console.error('❌ Erro ao excluir usuário:', JSON.stringify(error, null, 2));
         throw error;
       }
-      
-      console.log('Usuário excluído com sucesso');
+
+      console.log('📊 Linhas afetadas pela exclusão:', count);
+
+      if (count === 0) {
+        console.warn('⚠️ Nenhuma linha foi excluída');
+        return false;
+      }
+
+      console.log('✅ Usuário excluído com sucesso');
       return true;
     } catch (error) {
-      console.error('Erro ao excluir usuário:', error);
+      console.error('❌ Erro ao excluir usuário:', error);
+      console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'N/A');
       return false;
     }
   }

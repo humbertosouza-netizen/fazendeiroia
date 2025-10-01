@@ -343,7 +343,7 @@ export default function PortalPage() {
       </main>
       
       {/* Footer moderno estilo Apple */}
-      <footer className="bg-gradient-to-b from-gray-900 to-gray-950 text-white relative overflow-hidden">
+      <footer className="bg-gray-900 text-white py-12">
         {/* Elementos decorativos no fundo */}
         <div className="absolute inset-0 overflow-hidden z-0 opacity-5">
           <div className="absolute top-0 left-10">
